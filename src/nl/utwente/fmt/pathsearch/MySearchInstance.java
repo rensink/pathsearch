@@ -50,7 +50,7 @@ public class MySearchInstance implements Iterator<Solution> {
 		this.deltasMap = new HashMap<>();
         this.frontier.add(product);
         this.downstreamMap.put(product, Collections.emptySet());
-		this.exhausted = false;
+        this.exhausted = !gf.getNodes().contains(product);
 		this.nextValid = false;
 	}
 
