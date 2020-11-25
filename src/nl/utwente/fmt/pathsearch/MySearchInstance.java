@@ -1,6 +1,9 @@
 package nl.utwente.fmt.pathsearch;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
@@ -159,7 +162,12 @@ public class MySearchInstance implements Iterator<Solution> {
         // compute the resulting (additional) downstream
         var newDownstream = new ArrayList<>(this.downstreamMap.get(made));
         newDownstream.add(made);
+        var uniqueSource = new HashSet<Node>();
         for (var pred : maker.source()) {
+            if (!uniqueSource.add(pred)) {
+                // this is a duplicate source; do nothing
+                continue;
+            }
             if (this.downstreamMap.containsKey(pred)) {
                 // this is a previously found node
                 // add the new downstream to it and all its upstream
@@ -186,16 +194,21 @@ public class MySearchInstance implements Iterator<Solution> {
         }
     }
 
-    private void removeMaker(Edge edge) {
+    private void removeMaker(Edge maker) {
         // Iterate over the maker's source nodes in reverse order
-        var predIter = edge.source().listIterator(edge.source().size());
-        var delta = this.deltasMap.remove(edge);
+        var predIter = maker.source().listIterator(maker.source().size());
+        var delta = this.deltasMap.remove(maker);
+        var uniqueSource = new HashSet<Node>();
 		while (predIter.hasPrevious()) {
 			var pred = predIter.previous();
+            if (!uniqueSource.add(pred)) {
+                // this is a duplicate source; do nothing
+                continue;
+            }
             if (!delta.containsKey(pred)) {
-                // this predecessor was found later; it must be the last in the frontier
-                assert pred == this.frontier.peek()
-                        : String.format("Source %s of %s is not at front of %s", pred, edge, this.frontier);
+                // this predecessor was found later; it must be at the head of the frontier
+                assert pred == this.frontier.peek() || saveAsDot(maker)
+                        : String.format("Source %s of %s is not at front of %s", pred, maker, this.frontier);
                 this.frontier.remove();
                 this.downstreamMap.remove(pred);
 			}
@@ -244,5 +257,66 @@ public class MySearchInstance implements Iterator<Solution> {
             }
             System.out.println(b);
         }
+    }
+
+    private static final String FILE_SEP = System.getProperty("file.separator");
+    private static final String DOT_DIR = System.getProperty("user.dir") + FILE_SEP + "dots";
+
+    public boolean saveAsDot(Edge... extra) {
+        File temp;
+        try {
+            temp = new File(DOT_DIR + FILE_SEP + this.gf.getName() + ".dot");
+            var fout = new FileWriter(temp);
+            fout.write(toDot(extra));
+            fout.close();
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+        }
+        return false;
+    }
+
+    public String toDot(Edge... extra) {
+        this.count = 0;
+        this.nodeNames = new HashMap<>();
+        var result = new StringBuilder();
+        result.append("digraph \"" + this.gf.getName() + "\" {\n");
+        result.append("node [style=filled,color=gold3,fillcolor=gold1,shape=box] \n");
+        result.append("edge [color=gold3] \n");
+        this.made.stream().map(this::madeNodeLine).forEach(result::append);
+        Arrays.stream(extra).map(Edge::target).map(this::foundNodeLine).forEach(result::append);
+        this.frontier.stream().map(this::foundNodeLine).forEach(result::append);
+        this.deltasMap.keySet().stream().map(this::edgeLines).forEach(result::append);
+        Arrays.stream(extra).map(this::edgeLines).forEach(result::append);
+        result.append("}");
+        return result.toString();
+    }
+
+    private int count;
+    private Map<Node, String> nodeNames;
+
+    private String madeNodeLine(Node node) {
+        var name = "" + this.count + ": " + node.name();
+        this.nodeNames.put(node, name);
+        this.count++;
+        return String.format("\"%s\" [color=deepskyblue3,fillcolor=deepskyblue1,shape=ellipse]%n", name);
+    }
+
+    private String foundNodeLine(Node node) {
+        var name = "" + this.count + ": " + node.name();
+        this.nodeNames.put(node, name);
+        this.count++;
+        return String.format("\"%s\" [color=deepskyblue3,fillcolor=cyan1,shape=ellipse]%n",
+                name);
+    }
+
+    private String edgeLines(Edge edge) {
+        var result = new StringBuilder();
+        result.append(String.format("\"%s\" [height=0,width=0] %n", edge.name()));
+        for (var i = 0; i < edge.source().size(); i++) {
+            result.append(String.format("\"%s\" -> \"%s\" [headlabel=\"%s\"]%n",
+                    this.nodeNames.get(edge.source().get(i)), edge.name(), i));
+        }
+        result.append(String.format("\"%s\" -> \"%s\"%n", edge.name(), this.nodeNames.get(edge.target())));
+        return result.toString();
     }
 }
