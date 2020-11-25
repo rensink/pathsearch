@@ -28,6 +28,32 @@ public class MySearchTest {
     }
 
     @Test
+    public void testKevinLarge() {
+        var g = readGraph("kevinLarge");
+        g.addGenerator("wqiaiyuUwj");
+        var it = new MySearch(g).search(new Node("RTyLrWLwQv"));
+        var sol = it.next();
+        assertFalse(it.hasNext());
+        sol.saveDot();
+        assertEquals(9, sol.size());
+    }
+
+    @Test
+    public void testKevinLarge2() {
+        var g = readGraph("kevinLarge2");
+        g.addGenerator("LemWqhRXIa");
+        g.addGenerator("nurXcDYLrM");
+        var it = new MySearch(g).search(new Node("wZNHUjQJZm"));
+        var i = 0;
+        while (it.hasNext()) {
+            var sol = it.next();
+            i++;
+            dot(i);
+        }
+        finalDot(i);
+    }
+
+    @Test
     public void testExtratest() {
         var g = readGraph("extratest");
         g.addGenerator("wqiaiyuUwj");
@@ -47,5 +73,20 @@ public class MySearchTest {
             fail(e.getMessage());
             return null;
         }
+    }
+
+    private static int CRUMB_LINE_COUNT = 100_000;
+    private static int CRUMB_COUNT = CRUMB_LINE_COUNT / 100;
+
+    private static void dot(int count) {
+        if (count % CRUMB_LINE_COUNT == 0) {
+            System.out.printf(" (%s * %s)%n", count / CRUMB_LINE_COUNT, CRUMB_LINE_COUNT);
+        } else if (count % CRUMB_COUNT == 0) {
+            System.out.print(".");
+        }
+    }
+
+    private static void finalDot(int count) {
+        System.out.printf("%nTotal solution count: %s%n", count);
     }
 }
